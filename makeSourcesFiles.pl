@@ -344,6 +344,10 @@ Charles VAN GOETHEM
 
 =item -
 
+Generate bed files !
+
+=item -
+
 Add option to change genome assembly
 
 =item -
