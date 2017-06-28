@@ -12,7 +12,7 @@ makeSourcesFiles.pl
 
 ### VERSION
 
-version 0.0.1a
+version 0.0.1b
 
 ### SYNOPSIS
 
@@ -55,6 +55,20 @@ This script transform a bed of sources files for SARDINe
 - improved speed (algorithm really not optimized)
 
 - clean and comment code
+
+--------------------------------------------------------------------------------
+
+## make sources files
+
+### NAME
+
+coverageByGene.R
+
+### Usage
+
+Rscript --vanilla coverageByGene.R sample_DPamplicons.csv /path/to/output/
+
+--------------------------------------------------------------------------------
 
 ### LICENCE
 
