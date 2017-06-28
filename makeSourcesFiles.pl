@@ -15,7 +15,7 @@ use Pod::Usage;
 
 use Data::Dumper;
 
-my $makeSourcesFiles_VER = '0.0.1a';
+my $makeSourcesFiles_VER = '0.0.1b';
 
 ################################################################################
 ################################################################################
@@ -72,12 +72,9 @@ if (not defined $bed_file) {
 if ($output ne "") {
 	pod2usage(-verbose => 1, -message => "Error : '$output' does not exist !\n") unless (-e $output);
 	pod2usage(-verbose => 1, -message => "Error : '$output' is not a repertory !\n") unless (-d $output);
-	$output = $output."/".$comment.".csv";
-    open(OUT , ">$output") or die "Could not open file '$output' $!";
 } else {
-	$output = $pwd."/".$comment.".csv";
+	$output = $pwd;
 	print STDERR "Warning : All the outputs will be create here : '$output'";
-    open(OUT , ">$output") or die "Could not open file '$output' $!";
 }
 
 # if (defined $output) {
@@ -95,6 +92,8 @@ if ($output ne "") {
 ################################################################################
 ################################################################################
 
+open(OUT , ">".$output."/".$comment.".csv") or die "Could not open file '".$output."/".$comment."' $!";
+
 open(BED, $bed_file) or die "Cannot open file $bed_file $!";
 
 my $bed_array;
@@ -106,7 +105,7 @@ while(<BED>)
 	# CHR	EX	GENE	ORIENTATION	PCR_NAME	PCR_SIZE	PCR_START	PCR_STOP	SEQ_SIZE	SEQ_START	SEQ_STOP	AMORCE1	INSERT	AMORCE2
     my ($chr, $start, $end, $name, $size5, $size3) = split;
 	my ($gene, $exon);
-	if ($name =~ m/([A-Za-z0-1]+)Ex([0-9]+)[a-z]+/g) {
+	if ($name =~ m/([A-Za-z0-9]+)Ex([0-9]+)[a-z]*/g) {
 		$gene = $1;
 		$exon =$2;
 	} else {
@@ -164,7 +163,7 @@ while(<BED>)
 
 	my $amplicon = {
 		'chr'   => $chr,
-		'exon'     => $exon,
+		'exon'     => int($exon),
 		'gene'     => $gene,
 		'orientation' => $strand,
 		'PCR_name'  => $name,
@@ -214,7 +213,7 @@ foreach my $amp (@{$bed_array}) {
 			my $s =  @{$order{$lvl}};
 			@{$order{$lvl}}[$s] = $amp;
 			print OUT $comment."_".$j.";";
-			print OUT "$i;";
+			print OUT "$lvl;";
 			print OUT $amp->{chr}.";";
 			print OUT $amp->{exon}.";";
 			print OUT $amp->{gene}.";";
@@ -236,7 +235,7 @@ foreach my $amp (@{$bed_array}) {
 		$i++;
 		$order{$i}[0] = $amp;
 		print OUT $comment."_".$j.";";
-		print OUT "$i;";
+		print OUT $i.";";
 		print OUT $amp->{chr}.";";
 		print OUT $amp->{exon}.";";
 		print OUT $amp->{gene}.";";
@@ -256,6 +255,20 @@ foreach my $amp (@{$bed_array}) {
 
 # print Dumper \%order;
 close(OUT);
+
+foreach my $key (sort keys(%order)) {
+	open(OUT, ">".$output."/".$comment."-igv_".$key.".bed") or die "Could not open file '".$output."/".$comment."' $!";
+	foreach my $amp (@{$order{$key}}) {
+		print OUT $amp->{chr}."\t";
+		print OUT $amp->{PCR_start}."\t";
+		print OUT $amp->{PCR_stop}."\t";
+		print OUT $amp->{PCR_name}."\t";
+		print OUT $amp->{exon}."\t";
+		print OUT $amp->{orientation}."\t";
+		print OUT $amp->{gene}."\n";
+	}
+	close(OUT);
+}
 
 ##########################################################################################
 ##########################################################################################
