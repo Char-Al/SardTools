@@ -37,3 +37,6 @@ inc/
 #test
 test/*
 !test/test.bed
+*.bed
+*.csv
+*.pdf
