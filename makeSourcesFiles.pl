@@ -77,18 +77,6 @@ if ($output ne "") {
 	print STDERR "Warning : All the outputs will be create here : '$output'";
 }
 
-# if (defined $output) {
-#     if ($output !~ /(.+\.csv)$/o) {
-#     	pod2usage(-verbose => 1, -message => "Error : parameters \"-o|--output\" not correctly format (expected *.csv)");
-#     	exit;
-#     } else {
-#         $output = $1;
-#         open(OUT , ">$output") or die "Could not open file '$output' $!";
-#     }
-# } else {
-#     open(OUT, '>&', \*STDOUT) or die "Could not open 'STDOUT' $!";
-# }
-
 ################################################################################
 ################################################################################
 
@@ -113,6 +101,7 @@ while(<BED>)
 		$exon = 0;
 	}
 
+    # get sequence of amorce 1 (chromosomal orientation)
     my $amorce1 = "/sequence/region/human/$chr:$start..".($start + $size5 - 1).":1?coord_system_version=GRCh37";
     my $response1 = $http->get($server.$amorce1, {
         headers => {
@@ -120,6 +109,7 @@ while(<BED>)
         }
     });
 
+    # get sequence of amorce 2 (inverse of chromosomal orientation)
     my $amorce2 = "/sequence/region/human/$chr:".($end - $size3 + 1)."..".$end.":1?coord_system_version=GRCh37";
     my $response2 = $http->get($server.$amorce2, {
         headers => {
@@ -127,6 +117,7 @@ while(<BED>)
         }
     });
 
+    # get sequence of insert (chromosomal orientation)
     my $insert = "/sequence/region/human/$chr:".($start + $size5)."..".($end - $size3).":1?coord_system_version=GRCh37";
     my $response3 = $http->get($server.$insert, {
         headers => {
@@ -134,20 +125,20 @@ while(<BED>)
         }
     });
 
+    # get the strand of gene
     my $strand = "/overlap/region/human/$chr:".$start."..".$end.":1?feature=gene;coord_system_version=GRCh37";
+    # print STDERR $strand;
     my $response4 = $http->get($server.$strand, {
         headers => {
             'Content-type' => 'application/json'
         }
     });
-	# my $utf8_encoded_json_text = encode_json $perl_hash_or_arrayref;
+
 	my $hash_for_gene  = decode_json $response4->{content};
-	# print Dumper $perl_hash_or_arrayref;
+    # check if gene is known else force strand +
 	my $found_gene = 0;
 	foreach my $ensembl_gene (@{$hash_for_gene}) {
-		# print Dumper $ensembl_gene;
 		if($ensembl_gene->{external_name} eq $gene) {
-			# print $ensembl_gene->{strand};
 			if($ensembl_gene->{strand} > 0) {
 				$strand = '+';
 			} else {
@@ -161,6 +152,7 @@ while(<BED>)
 		$strand= '+';
 	}
 
+    # Create data for this amplicon
 	my $amplicon = {
 		'chr'   => $chr,
 		'exon'     => int($exon),
@@ -180,9 +172,17 @@ while(<BED>)
 		'size3' => $size3
 	};
     push(@{$bed_array}, $amplicon);
+
+
+    # force script sleeping each 3 iteration because only 15 request per seconds
+    # are authorized by ensembl rest api
+    # https://github.com/Ensembl/ensembl-rest/wiki/Rate-Limits
+    if(($j%3) == 0) {
+        sleep(1);
+    }
 }
 
-# print Dumper $bed_array;
+# Split amplicon by group in case of overlapping
 # https://stackoverflow.com/questions/10395383/sorting-an-array-of-hash-by-multiple-keys-perl
 @{$bed_array} = sort {
 	$a->{chr} cmp $b->{chr} or
@@ -198,6 +198,8 @@ my %order = (
 my $valid =1;
 $j=0;
 
+
+# print results
 print OUT "COMMENT;AMPLICON;CHR;EX;GENE;ORIENTATION;PCR_NAME;PCR_SIZE;PCR_START;PCR_STOP;SEQ_SIZE;SEQ_START;SEQ_STOP;AMORCE1;INSERT;AMORCE2\n";
 
 foreach my $amp (@{$bed_array}) {
@@ -256,6 +258,7 @@ foreach my $amp (@{$bed_array}) {
 # print Dumper \%order;
 close(OUT);
 
+# print results for overlapping
 foreach my $key (sort keys(%order)) {
 	open(OUT, ">".$output."/".$comment."-igv_".$key.".bed") or die "Could not open file '".$output."/".$comment."' $!";
 	foreach my $amp (@{$order{$key}}) {
